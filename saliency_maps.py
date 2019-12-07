@@ -1,6 +1,7 @@
 """Saliency map.
 A saliency map indicates the importance of each pixel in an image to the score of the
-true class, based on the article of Simonyan et al. (2014) :https://arxiv.org/abs/1312.6034
+true class.
+Based on the article from Simonyan et al. (2014) :https://arxiv.org/abs/1312.6034
 """
 import torch
 import torch.nn.functional as F
@@ -22,16 +23,31 @@ def compute_saliency_maps(data, target, model):
     # to compute the loss over the correct scores, and then compute the gradients
     # with a backward pass.
 
-    data.requires_grad = True
-    # compute raw outputs
-    output = model(data)
-    # cross entropy loss btw output and target
-    loss = F.cross_entropy(output, target)
-    # compute gradients
-    loss.backward()
+    batch_size = target.size(0)
+    data = data.clone().requires_grad_()
 
-    # absolute values of gradients
+    # compute raw outputs
+    out = model(data)
+    objective = torch.zeros(batch_size)
+    for idx in range(batch_size):
+        objective[idx] = out[idx, target[idx]]
+
+    objective.backward(torch.ones(batch_size))
+
+    # get saliency maps from gradients of inputs
     saliency = torch.abs(data.grad)
     saliency, _ = saliency.max(1)
 
     return saliency
+
+    #Note: below is what I was doing before: instead of computing the gradients
+    # on the output of the network for each class, I computed them on the cross
+    # entropy loss between the output and the classes.
+    # This is a different thing, and altough it gives similar results it is not the
+    # exact definition of the saliency map.
+
+    # cross entropy loss btw output and target
+    # out = model(data)
+    # loss = F.cross_entropy(out, target)
+    # compute gradients
+    # loss.backward()
