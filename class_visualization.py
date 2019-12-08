@@ -59,6 +59,7 @@ def create_class_visualization(target_y, model, dtype, init_img=None, l2_reg=1e-
         # Use the model to compute the gradient of the score for the
         # class target_y with respect to the pixels of the image, and make a
         # gradient step on the image using the learning rate.
+
         out = model(img)
         objective = out[0, target_y] - l2_reg * torch.norm(img)
         objective.backward()
@@ -83,12 +84,14 @@ def create_class_visualization(target_y, model, dtype, init_img=None, l2_reg=1e-
 
             plt.imshow(deprocess(img.clone().cpu()))
             class_name = class_names[target_y] if class_names else ''
-            plt.title("{}\nIteration {} / {}\nConfidence: {:.2f}"
-                      .format(class_name, t + 1, num_iterations, target_y_score*100))
+            plt.title("{}\nIteration {} \nConfidence: {:.2f}%"
+                      .format(class_name, t + 1, target_y_score*100))
             plt.gcf().set_size_inches(6, 6)
+            plt.gcf().tight_layout()
             plt.axis('off')
-            plt.show()
-
+            if t != num_iterations - 1:
+                plt.show()
     if savepath: plt.savefig(savepath)
+    plt.show()
 
     return deprocess(img.cpu())

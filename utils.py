@@ -36,7 +36,7 @@ def rescale(x):
 def blur_image(x_numpy, sigma=1):
     """Blur an image by applying a gaussian filter on it.
     Args:
-        x (numpy.array): input image
+        x (numpy.array): input tensor image
         sigma (number): standard deviation
     Returns
         torch.Tensor: output blurred tensor image

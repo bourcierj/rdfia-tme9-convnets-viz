@@ -40,7 +40,7 @@ def compute_saliency_maps(data, target, model):
 
     return saliency
 
-    #Note: below is what I was doing before: instead of computing the gradients
+    # Note: below is what I was doing before: instead of computing the gradients
     # on the output of the network for each class, I computed them on the cross
     # entropy loss between the output and the classes.
     # This is a different thing, and altough it gives similar results it is not the
