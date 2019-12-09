@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from utils import *
 
 def make_fooling_image(x, destination_y, model, max_iters=100, confidence=None,
-                       plot_progress=False):
+                       optimization='class_output', plot_progress=False):
     """
     Generate a fooling image that is close to x, but that the model classifies
     as destination_y.
@@ -24,18 +24,25 @@ def make_fooling_image(x, destination_y, model, max_iters=100, confidence=None,
         model (torch.nn.Module): a pretrained CNN
         confidence (float, optional): stop when the fooling confidence is over this number
             in the interval [0, 1[
+        optimization (str): The type of optimization performed on the image, i.e. what's the
+            objective.
+            - if 'class_output', the output of the network for target class in maximized
+                with gradient ascent;
+            - if 'cross_entropy_loss', the cross-entropy loss between the output of the
+                network and the target class is minimized with gradient descent.
+
         plot_progress (bool): if True, plot progress at every iteration
 
     Returns:
         torch.Tensor: an image that is close to the input, but that is classifed
             as destination_y by the model.
-        it: the number of gradient iteration it took
+        int: the number of gradient iterations it took
     """
-    # Generate a fooling image X_fooling that the model will classify as
+    # Generate a fooling image x_fooling that the model will classify as
     # the class target_y. You should perform gradient ascent on the score of the
     # target class, stopping when the model is fooled.
     # When computing an update step, first normalize the gradient:
-    #   dX = learning_rate * g / ||g||_2
+    #   g_norm = g / ||g||_2
 
     # Note: For most examples, you should be able to generate a fooling image
     # in fewer than 100 iterations of gradient ascent.
@@ -50,24 +57,39 @@ def make_fooling_image(x, destination_y, model, max_iters=100, confidence=None,
     x_fooling = x.clone().requires_grad_()
     # a learning rate of 0.5 works well in practice
     learning_rate = 0.5
-    it = 1
+    t = 1
     out = model(x_fooling)
-    for it in range(1, max_iters+1):
+    for t in range(0, max_iters):
 
-        loss = F.cross_entropy(out, dest_y)
-        loss.backward()
-        x_fooling = x_fooling - learning_rate * (x_fooling.grad / torch.norm(x_fooling.grad))
+        if optimization == 'class_output':
+            # compute objective
+            objective = out[0, destination_y]
+            objective.backward()
+            x_fooling = x_fooling + learning_rate * \
+                (x_fooling.grad / torch.norm(x_fooling.grad))
+
+        elif optimization == 'cross_entropy_loss':
+            loss = F.cross_entropy(out, dest_y)
+            loss.backward()
+            x_fooling = x_fooling - learning_rate * \
+                (x_fooling.grad / torch.norm(x_fooling.grad))
+        else:
+            raise ValueError('{}: Unknown type of optimization'.format(optimization))
+
         x_fooling.detach_().requires_grad_()
+        # compute raw outputs
         out = model(x_fooling)
+
+        # compute the predicted label and the confidence in destination_y
         pred_y = out.argmax(1)
-        dest_y_score = F.softmax(out, 1)[0, dest_y].item()
+        dest_y_score = F.softmax(out, 1)[0, destination_y].item()
 
         if plot_progress:
             # plot fooling image and its modifications
             plt.subplot(1, 2, 1)
             plt.imshow(np.asarray(deprocess(x_fooling.clone())).astype(np.uint8))
-            plt.title("Iteration {} \nFooled image \nConfidence: {:.2f}"
-                      .format(it, dest_y_score))
+            plt.title("Fooled image \nIteration {} \nConfidence: {:.2%}"
+                      .format(t+1, dest_y_score))
             plt.axis('off')
             plt.subplot(1, 2, 2)
             plt.imshow(np.asarray(deprocess(10* (x_fooling - x), should_rescale=False)))
@@ -81,7 +103,7 @@ def make_fooling_image(x, destination_y, model, max_iters=100, confidence=None,
             elif dest_y_score > confidence:
                 break
 
-    if it == max_iters - 1:
-        print('Not enough iteration to obtain a fooling example.')
+    if t == max_iters - 1:
+        print('Not enough iterations to obtain a fooling example.')
 
-    return x_fooling.detach()
+    return x_fooling, t+1
