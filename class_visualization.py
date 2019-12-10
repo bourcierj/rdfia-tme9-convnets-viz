@@ -20,7 +20,7 @@ from utils import *
 def create_class_visualization(target_y, model, dtype, init_img=None, l2_reg=1e-3,
                                learning_rate=5, num_iterations=200, blur_every=10,
                                blur_width=0.5, max_jitter=16, clamp=True,
-                               show_every=25, class_names=None, savepath=None):
+                               show_every=25, class_name=None, savepath=None):
     """
     Generate an image to maximize the score of target_y under a pretrained model.
     Shows the progress every `show_every` iterations.
@@ -91,7 +91,7 @@ def create_class_visualization(target_y, model, dtype, init_img=None, l2_reg=1e-
             target_y_score = F.softmax(out, 1)[0, target_y]
 
             plt.imshow(deprocess(img.clone().cpu()))
-            class_name = class_names[target_y] if class_names else ''
+            if not class_name: class_name = ''
             plt.title("{}\nIteration {} \nConfidence: {:.2%}"
                       .format(class_name, t + 1, target_y_score))
             plt.gcf().set_size_inches(6, 6)
